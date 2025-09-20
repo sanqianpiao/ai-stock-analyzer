@@ -21,6 +21,7 @@ try:
     from src.data_fetcher import DataFetcher, validate_ticker
     from src.analyzer import TechnicalAnalyzer, SentimentAnalyzer
     from src.analyzer import analyze_stock, analyze_news_sentiment
+    from src.reporter import StockReporter
 except ImportError as e:
     print(f"Error importing modules: {e}")
     print("Make sure all dependencies are installed: pip install -r requirements.txt")
@@ -47,6 +48,7 @@ class StockAnalyzerCLI:
         self.data_fetcher = DataFetcher()
         self.technical_analyzer = TechnicalAnalyzer()
         self.sentiment_analyzer = SentimentAnalyzer()
+        self.reporter = StockReporter()
     
     def validate_setup(self) -> bool:
         """Validate that the application is properly configured."""
@@ -130,6 +132,9 @@ class StockAnalyzerCLI:
                     "sentiment_label": "Neutral",
                     "explanation": "No recent news articles available"
                 }
+        
+        # Store stock data for potential report generation
+        results["stock_data"] = stock_data
         
         return results
     
@@ -222,6 +227,44 @@ class StockAnalyzerCLI:
         print(f"Analysis completed at {results.get('analysis_timestamp', datetime.now().isoformat())}")
         print(f"⚠️  This is not financial advice. Always do your own research.")
         print(f"{'='*60}")
+    
+    def generate_report(self, results: dict, format_type: str = "html", output_file: str = None) -> Optional[str]:
+        """
+        Generate a comprehensive report from analysis results.
+        
+        Args:
+            results (dict): Analysis results from analyze_ticker
+            format_type (str): Report format ('html' or 'markdown')
+            output_file (str): Optional output file path
+            
+        Returns:
+            str: Path to generated report file, or None if failed
+        """
+        if not results or "stock_data" not in results:
+            print("❌ No analysis results or stock data available for report generation")
+            return None
+        
+        try:
+            print(f"📄 Generating {format_type.upper()} report...")
+            
+            # Extract stock data
+            stock_data = results["stock_data"]
+            
+            # Generate report
+            report_path = self.reporter.generate_report(
+                analysis_results=results,
+                stock_data=stock_data,
+                format_type=format_type,
+                output_file=output_file
+            )
+            
+            print(f"✅ Report generated successfully: {report_path}")
+            return report_path
+            
+        except Exception as e:
+            logger.error(f"Error generating report: {e}")
+            print(f"❌ Failed to generate report: {e}")
+            return None
     
     def _print_recommendation(self, technical: dict, sentiment: dict):
         """Generate and print an overall recommendation."""
@@ -333,6 +376,18 @@ Examples:
     )
     
     parser.add_argument(
+        "--generate-report",
+        choices=["html", "markdown", "both"],
+        help="Generate a comprehensive report in the specified format(s) after analysis"
+    )
+    
+    parser.add_argument(
+        "--report-output",
+        type=str,
+        help="Output file path for the generated report (auto-generated if not provided)"
+    )
+    
+    parser.add_argument(
         "--version",
         action="version",
         version="AI Stock Analyzer 0.1.0"
@@ -378,6 +433,24 @@ def main():
         
         if results:
             cli.print_analysis_summary(results)
+            
+            # Generate reports if requested
+            if args.generate_report:
+                if args.generate_report == "both":
+                    # Generate both HTML and Markdown reports
+                    html_path = cli.generate_report(results, "html", args.report_output)
+                    md_path = cli.generate_report(results, "markdown", 
+                                                args.report_output.replace('.html', '.md') if args.report_output and args.report_output.endswith('.html') else None)
+                    
+                    if html_path and md_path:
+                        print(f"\n📊 Reports generated:")
+                        print(f"  HTML: {html_path}")
+                        print(f"  Markdown: {md_path}")
+                else:
+                    # Generate single report
+                    report_path = cli.generate_report(results, args.generate_report, args.report_output)
+                    if report_path:
+                        print(f"\n📊 Report generated: {report_path}")
         else:
             print("❌ Analysis failed. Please check the ticker symbol and try again.")
             sys.exit(1)

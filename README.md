@@ -83,9 +83,56 @@ python main.py MSFT --max-articles 5
 
 # Verbose output for debugging
 python main.py NVDA --verbose
+
+# Generate HTML report after analysis
+python main.py AAPL --generate-report html
+
+# Generate Markdown report with custom output path
+python main.py TSLA --generate-report markdown --report-output my_tsla_report.md
+
+# Generate both HTML and Markdown reports
+python main.py GOOGL --generate-report both
 ```
 
-## 📋 Sample Output
+## � Report Generation
+
+The AI Stock Analyzer can generate comprehensive reports in HTML and Markdown formats, featuring:
+
+### 🎨 Report Features
+- **Interactive Charts**: Plotly-powered candlestick charts, technical indicators, and sentiment gauges
+- **Professional Styling**: Responsive design with modern CSS styling for HTML reports
+- **News Citations**: Proper attribution of all news sources with publication dates and links
+- **Export Options**: HTML for viewing in browsers, Markdown for documentation
+- **Automatic Naming**: Reports are automatically timestamped and saved in the `reports/` directory
+
+### 📈 Report Contents
+- **Executive Summary**: Key metrics and recommendations at a glance
+- **Company Information**: Sector, industry, market cap, and financial ratios
+- **Price Analysis**: Interactive candlestick charts with moving averages and volume
+- **Technical Analysis**: RSI, Bollinger Bands, support/resistance levels, and trading signals
+- **Sentiment Analysis**: News sentiment scoring with confidence levels and key factors
+- **News Sources**: Complete citations with links to original articles
+- **Investment Recommendation**: AI-generated buy/sell/hold recommendation with scoring
+
+### 🔧 Report Generation Options
+
+```bash
+# Generate HTML report (recommended for viewing)
+python main.py AAPL --generate-report html
+
+# Generate Markdown report (good for documentation)
+python main.py AAPL --generate-report markdown
+
+# Generate both formats
+python main.py AAPL --generate-report both
+
+# Custom output file
+python main.py AAPL --generate-report html --report-output my_custom_report.html
+```
+
+Reports are saved in the `reports/` directory with automatic timestamps.
+
+## �📋 Sample Output
 
 ```
 🔍 Analyzing AAPL...
@@ -160,7 +207,12 @@ ai_stock_analyzer/
 │   ├── __init__.py
 │   ├── config.py            # Configuration management
 │   ├── data_fetcher.py      # Stock and news data fetching
-│   └── analyzer.py          # Technical and sentiment analysis
+│   ├── analyzer.py          # Technical and sentiment analysis
+│   └── reporter.py          # Report generation (HTML/Markdown)
+├── reports/                 # Generated analysis reports
+│   ├── *.html              # HTML reports with interactive charts
+│   ├── *.md                # Markdown reports
+│   └── *.png               # Chart images for markdown reports
 ├── tests/                   # Unit tests
 │   ├── __init__.py
 │   ├── test_config.py
