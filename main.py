@@ -107,9 +107,10 @@ class StockAnalyzerCLI:
             results["company_info"] = stock_info
             print(f"📊 Company: {stock_info.get('longName', 'N/A')}")
         
-        # Perform technical analysis
+        # Perform technical analysis and get enhanced data with indicators
         print("⚙️ Performing technical analysis...")
-        technical_analysis = analyze_stock(stock_data)
+        from src.analyzer import analyze_stock_with_indicators
+        technical_analysis, stock_data = analyze_stock_with_indicators(stock_data)
         if technical_analysis:
             results["technical_analysis"] = technical_analysis
             print(f"✅ Technical analysis complete - Trend: {technical_analysis.get('trend', 'Unknown')}")

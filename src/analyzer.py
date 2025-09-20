@@ -282,12 +282,16 @@ class TechnicalAnalyzer:
                 logger.warning("Empty data provided for analysis")
                 return {}
             
-            # Calculate all indicators
+            # Calculate indicators if not already present
             data_with_indicators = data.copy()
-            data_with_indicators = self.calculate_moving_averages(data_with_indicators)
-            data_with_indicators = self.calculate_rsi(data_with_indicators)
-            data_with_indicators = self.calculate_bollinger_bands(data_with_indicators)
-            data_with_indicators = self.calculate_volume_indicators(data_with_indicators)
+            
+            # Check if indicators already exist, if not calculate them
+            required_columns = [f'MA_{self.short_ma_period}', f'MA_{self.long_ma_period}', 'RSI', 'BB_Upper', 'BB_Lower']
+            if not all(col in data_with_indicators.columns for col in required_columns):
+                data_with_indicators = self.calculate_moving_averages(data_with_indicators)
+                data_with_indicators = self.calculate_rsi(data_with_indicators)
+                data_with_indicators = self.calculate_bollinger_bands(data_with_indicators)
+                data_with_indicators = self.calculate_volume_indicators(data_with_indicators)
             
             # Get latest values
             latest = data_with_indicators.iloc[-1]
@@ -665,6 +669,25 @@ sentiment_analyzer = SentimentAnalyzer()
 def analyze_stock(data: pd.DataFrame) -> Dict[str, Any]:
     """Convenience function for stock analysis."""
     return technical_analyzer.analyze_stock(data)
+
+
+def analyze_stock_with_indicators(data: pd.DataFrame) -> tuple[Dict[str, Any], pd.DataFrame]:
+    """
+    Convenience function for stock analysis that returns both analysis results and enhanced DataFrame.
+    
+    Returns:
+        tuple: (analysis_results, enhanced_dataframe_with_indicators)
+    """
+    # Calculate technical indicators once
+    enhanced_data = technical_analyzer.calculate_moving_averages(data.copy())
+    enhanced_data = technical_analyzer.calculate_rsi(enhanced_data)
+    enhanced_data = technical_analyzer.calculate_bollinger_bands(enhanced_data)
+    enhanced_data = technical_analyzer.calculate_volume_indicators(enhanced_data)
+    
+    # Get analysis results using the already enhanced data
+    analysis_results = technical_analyzer.analyze_stock(enhanced_data)
+    
+    return analysis_results, enhanced_data
 
 
 def calculate_technical_indicators(data: pd.DataFrame) -> pd.DataFrame:
