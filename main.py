@@ -378,7 +378,14 @@ Examples:
     parser.add_argument(
         "--generate-report",
         choices=["html", "markdown", "both"],
-        help="Generate a comprehensive report in the specified format(s) after analysis"
+        default="html",
+        help="Generate a comprehensive report in the specified format(s) after analysis (default: html)"
+    )
+    
+    parser.add_argument(
+        "--no-report",
+        action="store_true",
+        help="Skip report generation (overrides --generate-report)"
     )
     
     parser.add_argument(
@@ -434,8 +441,8 @@ def main():
         if results:
             cli.print_analysis_summary(results)
             
-            # Generate reports if requested
-            if args.generate_report:
+            # Generate reports by default (unless --no-report is specified)
+            if not args.no_report:
                 if args.generate_report == "both":
                     # Generate both HTML and Markdown reports
                     html_path = cli.generate_report(results, "html", args.report_output)
@@ -451,6 +458,8 @@ def main():
                     report_path = cli.generate_report(results, args.generate_report, args.report_output)
                     if report_path:
                         print(f"\n📊 Report generated: {report_path}")
+            else:
+                print("\n📊 Report generation skipped (--no-report specified)")
         else:
             print("❌ Analysis failed. Please check the ticker symbol and try again.")
             sys.exit(1)

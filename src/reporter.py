@@ -56,10 +56,18 @@ class StockReporter:
         ticker = analysis_results.get("ticker", "UNKNOWN")
         timestamp = analysis_results.get("analysis_timestamp", datetime.now().isoformat())
         
+        # Create organized folder structure: reports/TICKER_YYYY-MM-DD/
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        ticker_folder = self.report_dir / f"{ticker}_{date_str}"
+        ticker_folder.mkdir(exist_ok=True)
+        
         if not output_file:
-            timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+            timestamp_str = datetime.now().strftime("%H%M%S")
             extension = "html" if format_type == "html" else "md"
-            output_file = self.report_dir / f"{ticker}_analysis_{timestamp_str}.{extension}"
+            output_file = ticker_folder / f"{ticker}_analysis_{timestamp_str}.{extension}"
+        else:
+            # If custom output path, still put it in the organized folder
+            output_file = ticker_folder / Path(output_file).name
         
         try:
             if format_type == "html":
@@ -168,13 +176,18 @@ class StockReporter:
         ticker = results.get("ticker", "UNKNOWN")
         timestamp = results.get("analysis_timestamp", datetime.now().isoformat())
         
+        # Create organized folder structure for this analysis
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        ticker_folder = self.report_dir / f"{ticker}_{date_str}"
+        ticker_folder.mkdir(exist_ok=True)
+        
         # Generate charts and save as images
         price_chart = self._create_price_chart(stock_data, results)
         technical_chart = self._create_technical_indicators_chart(stock_data, results)
         
-        # Save charts as images for markdown
-        price_img_path = self.report_dir / f"{ticker}_price_chart.png"
-        technical_img_path = self.report_dir / f"{ticker}_technical_chart.png"
+        # Save charts as images for markdown in the organized folder
+        price_img_path = ticker_folder / f"{ticker}_price_chart.png"
+        technical_img_path = ticker_folder / f"{ticker}_technical_chart.png"
         
         price_chart.write_image(str(price_img_path), width=800, height=500)
         technical_chart.write_image(str(technical_img_path), width=800, height=400)
