@@ -292,7 +292,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- 📧 Email: support@example.com
+- 📧 Email: yidong.chuang@gmail.com
 - 🐛 Issues: [GitHub Issues](https://github.com/yourusername/ai-stock-analyzer/issues)
 - 📖 Documentation: [Wiki](https://github.com/yourusername/ai-stock-analyzer/wiki)
 
