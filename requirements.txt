@@ -1,0 +1,39 @@
+# Data fetching and manipulation
+yfinance>=0.2.20
+pandas>=2.0.0
+numpy>=1.24.0
+requests>=2.31.0
+
+# News API
+newsapi-python>=0.2.6
+
+# OpenAI and LangChain for AI functionality
+openai>=1.0.0
+langchain>=0.1.0
+langchain-openai>=0.1.0
+langchain-community>=0.1.0
+
+# Vector storage for RAG
+faiss-cpu>=1.7.4
+
+# Technical analysis
+TA-Lib>=0.4.25
+
+# Web app (optional)
+streamlit>=1.28.0
+
+# Visualization
+plotly>=5.17.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-mock>=3.11.0
+
+# Environment management
+python-dotenv>=1.0.0
+
+# Utilities
+click>=8.1.0
