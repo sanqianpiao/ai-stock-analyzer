@@ -296,6 +296,7 @@ Examples:
     
     parser.add_argument(
         "ticker",
+        nargs="?",
         help="Stock ticker symbol (e.g., AAPL, GOOGL, TSLA)"
     )
     
@@ -359,6 +360,12 @@ def main():
     if args.validate_only:
         print("✅ Configuration validation successful")
         sys.exit(0)
+    
+    # Check if ticker is provided for analysis
+    if not args.ticker:
+        print("❌ Error: ticker argument is required for analysis")
+        print("Use --help to see usage information or --validate-only to just validate setup")
+        sys.exit(1)
     
     try:
         # Perform analysis
