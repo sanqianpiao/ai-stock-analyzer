@@ -149,6 +149,13 @@ reports/
     └── GOOGL_analysis_162045.md
 ```
 
+### 📖 Sample Reports
+Check out the `reports_examples/` directory for real sample reports including:
+- **AAPL, MSFT, and TSLA analyses** with both HTML and Markdown formats
+- **Interactive charts** showing price movements and technical indicators
+- **Professional styling** with responsive design
+- **Complete sentiment analysis** with news citations
+
 ## �📋 Sample Output
 
 ```
@@ -231,6 +238,10 @@ ai_stock_analyzer/
 │   │   ├── *.html          # HTML reports with interactive charts
 │   │   ├── *.md            # Markdown reports
 │   │   └── *.png           # Chart images for markdown reports
+├── reports_examples/        # Sample reports for demonstration
+│   ├── AAPL_2025-09-20/   # Apple stock analysis examples
+│   ├── MSFT_2025-09-20/   # Microsoft stock analysis examples
+│   └── TSLA_2025-09-20/   # Tesla stock analysis examples
 ├── tests/                   # Unit tests
 │   ├── __init__.py
 │   ├── test_config.py
