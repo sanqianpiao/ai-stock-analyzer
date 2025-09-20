@@ -132,6 +132,8 @@ Thumbs.db
 *.faiss
 *.pkl
 
-# Generated reports
+# Generated reports (but allow examples)
 reports/
+!reports_examples/
 *.html
+!reports_examples/**/*.html
