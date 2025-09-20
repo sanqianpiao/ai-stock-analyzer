@@ -1,0 +1,79 @@
+{
+  "AAPL": {
+    "stock_data": {
+      "Date": ["2024-08-20", "2024-08-21", "2024-08-22", "2024-08-23", "2024-08-26"],
+      "Open": [224.38, 225.77, 223.88, 220.85, 217.49],
+      "High": [226.05, 225.92, 224.12, 222.50, 218.32],
+      "Low": [223.01, 222.56, 220.27, 217.71, 216.10],
+      "Close": [225.77, 224.72, 224.12, 220.85, 217.49],
+      "Volume": [46311900, 54156900, 42084200, 52722800, 54156900],
+      "Ticker": ["AAPL", "AAPL", "AAPL", "AAPL", "AAPL"]
+    },
+    "stock_info": {
+      "symbol": "AAPL",
+      "shortName": "Apple Inc.",
+      "longName": "Apple Inc.",
+      "sector": "Technology",
+      "industry": "Consumer Electronics",
+      "marketCap": 3400000000000,
+      "currentPrice": 220.85,
+      "previousClose": 224.12,
+      "beta": 1.24,
+      "trailingPE": 33.86,
+      "dividendYield": 0.0044,
+      "volume": 52722800,
+      "averageVolume": 48500000
+    },
+    "news_articles": [
+      {
+        "title": "Apple Announces New iPhone Features",
+        "description": "Apple Inc. unveiled new features for upcoming iPhone models at their latest event.",
+        "url": "https://example.com/apple-news-1",
+        "published_at": "2024-08-23T10:30:00Z",
+        "source": "Tech News"
+      },
+      {
+        "title": "Apple Stock Analysis: Strong Quarter Expected",
+        "description": "Analysts expect Apple to report strong quarterly results based on recent product launches.",
+        "url": "https://example.com/apple-news-2",
+        "published_at": "2024-08-22T14:15:00Z",
+        "source": "Financial Times"
+      }
+    ]
+  },
+  "GOOGL": {
+    "stock_data": {
+      "Date": ["2024-08-20", "2024-08-21", "2024-08-22", "2024-08-23", "2024-08-26"],
+      "Open": [158.22, 159.45, 157.88, 155.30, 153.75],
+      "High": [160.15, 159.92, 158.41, 156.85, 154.92],
+      "Low": [157.65, 157.20, 155.47, 152.90, 152.11],
+      "Close": [159.45, 158.41, 156.85, 153.75, 153.12],
+      "Volume": [25847600, 28392100, 31256800, 35892400, 32145600],
+      "Ticker": ["GOOGL", "GOOGL", "GOOGL", "GOOGL", "GOOGL"]
+    },
+    "stock_info": {
+      "symbol": "GOOGL",
+      "shortName": "Alphabet Inc.",
+      "longName": "Alphabet Inc. (Google)",
+      "sector": "Communication Services",
+      "industry": "Internet Content & Information",
+      "marketCap": 1950000000000,
+      "currentPrice": 153.75,
+      "previousClose": 156.85,
+      "beta": 1.05,
+      "trailingPE": 25.42,
+      "dividendYield": 0.0,
+      "volume": 35892400,
+      "averageVolume": 28500000
+    },
+    "news_articles": [
+      {
+        "title": "Google AI Advances in Search Technology",
+        "description": "Google announces significant improvements to its AI-powered search capabilities.",
+        "url": "https://example.com/google-news-1",
+        "published_at": "2024-08-23T09:45:00Z",
+        "source": "Tech Review"
+      }
+    ]
+  }
+}
