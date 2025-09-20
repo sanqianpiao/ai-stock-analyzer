@@ -2,16 +2,26 @@
 Quantitative Analysis Module for AI Stock Analyzer.
 
 This module provides functions for calculating technical indicators, analyzing stock trends,
-and generating quantitative insights from stock price data.
+generating quantitative insights from stock price data, and performing sentiment analysis
+on news articles using OpenAI GPT models.
 """
 
 import logging
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, List
 import pandas as pd
 import numpy as np
 from datetime import datetime
+import json
 
 from .config import config
+
+# OpenAI imports - handle gracefully if not available
+try:
+    from openai import OpenAI
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+    OpenAI = None
 
 # Set up logging
 logging.basicConfig(level=getattr(logging, config.LOG_LEVEL))
@@ -373,8 +383,245 @@ class TechnicalAnalyzer:
             return {"buy": [], "sell": [], "neutral": []}
 
 
-# Create global analyzer instance
+class SentimentAnalyzer:
+    """Class for performing sentiment analysis on news articles using OpenAI."""
+    
+    def __init__(self):
+        """Initialize the SentimentAnalyzer."""
+        self.client = None
+        if OPENAI_AVAILABLE and config.OPENAI_API_KEY:
+            try:
+                self.client = OpenAI(api_key=config.OPENAI_API_KEY)
+            except Exception as e:
+                logger.warning(f"Failed to initialize OpenAI client: {e}")
+    
+    def analyze_news_sentiment(self, news_articles: List[Dict[str, Any]], ticker: str) -> Dict[str, Any]:
+        """
+        Analyze sentiment of news articles for a given stock ticker.
+        
+        Args:
+            news_articles (list): List of news articles with title and description
+            ticker (str): Stock ticker symbol
+            
+        Returns:
+            dict: Sentiment analysis results with score and explanation
+        """
+        if not self.client:
+            logger.warning("OpenAI client not available for sentiment analysis")
+            return {
+                "sentiment_score": 0.0,
+                "sentiment_label": "Neutral",
+                "confidence": 0.0,
+                "explanation": "Sentiment analysis not available - OpenAI client not initialized",
+                "articles_analyzed": 0
+            }
+        
+        if not news_articles:
+            logger.info("No news articles provided for sentiment analysis")
+            return {
+                "sentiment_score": 0.0,
+                "sentiment_label": "Neutral", 
+                "confidence": 0.0,
+                "explanation": "No recent news articles found for analysis",
+                "articles_analyzed": 0
+            }
+        
+        try:
+            # Prepare articles text for analysis
+            articles_text = self._prepare_articles_for_analysis(news_articles, ticker)
+            
+            # Create prompt for sentiment analysis
+            prompt = self._create_sentiment_prompt(articles_text, ticker)
+            
+            # Get sentiment analysis from OpenAI
+            response = self.client.chat.completions.create(
+                model=config.OPENAI_MODEL,
+                messages=[
+                    {"role": "system", "content": "You are a financial analyst specializing in stock sentiment analysis."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.1,  # Low temperature for consistent analysis
+                max_tokens=500
+            )
+            
+            # Parse the response
+            result = self._parse_sentiment_response(response.choices[0].message.content)
+            result["articles_analyzed"] = len(news_articles)
+            
+            logger.info(f"Completed sentiment analysis for {ticker} with {len(news_articles)} articles")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error in sentiment analysis: {e}")
+            return {
+                "sentiment_score": 0.0,
+                "sentiment_label": "Neutral",
+                "confidence": 0.0,
+                "explanation": f"Error analyzing sentiment: {str(e)}",
+                "articles_analyzed": len(news_articles)
+            }
+    
+    def _prepare_articles_for_analysis(self, news_articles: List[Dict[str, Any]], ticker: str) -> str:
+        """
+        Prepare news articles text for sentiment analysis.
+        
+        Args:
+            news_articles (list): List of news articles
+            ticker (str): Stock ticker symbol
+            
+        Returns:
+            str: Formatted text for analysis
+        """
+        articles_text = f"Recent news articles about {ticker}:\n\n"
+        
+        for i, article in enumerate(news_articles[:config.MAX_NEWS_ARTICLES], 1):
+            title = article.get('title', '')
+            description = article.get('description', '')
+            source = article.get('source', 'Unknown')
+            
+            articles_text += f"Article {i} (Source: {source}):\n"
+            articles_text += f"Title: {title}\n"
+            if description:
+                articles_text += f"Description: {description}\n"
+            articles_text += "\n"
+        
+        return articles_text
+    
+    def _create_sentiment_prompt(self, articles_text: str, ticker: str) -> str:
+        """
+        Create a prompt for sentiment analysis.
+        
+        Args:
+            articles_text (str): Formatted articles text
+            ticker (str): Stock ticker symbol
+            
+        Returns:
+            str: Prompt for OpenAI
+        """
+        prompt = f"""
+Analyze the sentiment of the following news articles about {ticker} stock. 
+
+{articles_text}
+
+Please provide your analysis in the following JSON format:
+{{
+    "sentiment_score": <float between -1.0 and 1.0>,
+    "sentiment_label": "<Positive|Negative|Neutral>",
+    "confidence": <float between 0.0 and 1.0>,
+    "explanation": "<brief explanation of the sentiment analysis>",
+    "key_factors": ["<factor1>", "<factor2>", "<factor3>"]
+}}
+
+Guidelines:
+- sentiment_score: -1.0 (very negative) to 1.0 (very positive), 0.0 (neutral)
+- sentiment_label: "Positive" (score > 0.3), "Negative" (score < -0.3), "Neutral" (between -0.3 and 0.3)
+- confidence: How confident you are in the analysis (0.0 to 1.0)
+- explanation: Brief summary of why you assigned this sentiment
+- key_factors: Up to 3 main factors influencing the sentiment
+
+Focus on:
+1. Company performance and financial metrics
+2. Product announcements and business developments
+3. Market conditions and competitive position
+4. Regulatory or legal issues
+5. Executive changes or strategic decisions
+
+Only return the JSON response, no additional text.
+"""
+        return prompt
+    
+    def _parse_sentiment_response(self, response_text: str) -> Dict[str, Any]:
+        """
+        Parse the sentiment analysis response from OpenAI.
+        
+        Args:
+            response_text (str): Response text from OpenAI
+            
+        Returns:
+            dict: Parsed sentiment analysis results
+        """
+        try:
+            # Try to parse as JSON
+            result = json.loads(response_text.strip())
+            
+            # Validate and sanitize the response
+            sentiment_score = float(result.get('sentiment_score', 0.0))
+            sentiment_score = max(-1.0, min(1.0, sentiment_score))  # Clamp between -1 and 1
+            
+            confidence = float(result.get('confidence', 0.0))
+            confidence = max(0.0, min(1.0, confidence))  # Clamp between 0 and 1
+            
+            sentiment_label = result.get('sentiment_label', 'Neutral')
+            if sentiment_label not in ['Positive', 'Negative', 'Neutral']:
+                # Determine label from score
+                if sentiment_score > config.SENTIMENT_THRESHOLD_POSITIVE:
+                    sentiment_label = 'Positive'
+                elif sentiment_score < config.SENTIMENT_THRESHOLD_NEGATIVE:
+                    sentiment_label = 'Negative'
+                else:
+                    sentiment_label = 'Neutral'
+            
+            return {
+                "sentiment_score": round(sentiment_score, 3),
+                "sentiment_label": sentiment_label,
+                "confidence": round(confidence, 3),
+                "explanation": result.get('explanation', 'No explanation provided'),
+                "key_factors": result.get('key_factors', [])[:3]  # Limit to 3 factors
+            }
+            
+        except (json.JSONDecodeError, ValueError, KeyError) as e:
+            logger.warning(f"Failed to parse sentiment response as JSON: {e}")
+            
+            # Fallback: try to extract sentiment from text
+            response_lower = response_text.lower()
+            if any(word in response_lower for word in ['positive', 'bullish', 'optimistic', 'good', 'strong']):
+                sentiment_score = 0.5
+                sentiment_label = 'Positive'
+            elif any(word in response_lower for word in ['negative', 'bearish', 'pessimistic', 'bad', 'weak']):
+                sentiment_score = -0.5
+                sentiment_label = 'Negative'
+            else:
+                sentiment_score = 0.0
+                sentiment_label = 'Neutral'
+            
+            return {
+                "sentiment_score": sentiment_score,
+                "sentiment_label": sentiment_label,
+                "confidence": 0.3,  # Low confidence for fallback parsing
+                "explanation": "Fallback sentiment analysis due to parsing error",
+                "key_factors": []
+            }
+    
+    def get_sentiment_summary(self, sentiment_result: Dict[str, Any]) -> str:
+        """
+        Get a human-readable summary of the sentiment analysis.
+        
+        Args:
+            sentiment_result (dict): Sentiment analysis results
+            
+        Returns:
+            str: Human-readable sentiment summary
+        """
+        score = sentiment_result.get('sentiment_score', 0.0)
+        label = sentiment_result.get('sentiment_label', 'Neutral')
+        confidence = sentiment_result.get('confidence', 0.0)
+        explanation = sentiment_result.get('explanation', '')
+        
+        summary = f"Sentiment: {label} (Score: {score:.2f}, Confidence: {confidence:.1%})"
+        
+        if explanation:
+            summary += f"\nAnalysis: {explanation}"
+        
+        key_factors = sentiment_result.get('key_factors', [])
+        if key_factors:
+            summary += f"\nKey Factors: {', '.join(key_factors)}"
+        
+        return summary
+
+
+# Create global analyzer instances
 technical_analyzer = TechnicalAnalyzer()
+sentiment_analyzer = SentimentAnalyzer()
 
 
 # Convenience functions
@@ -390,3 +637,13 @@ def calculate_technical_indicators(data: pd.DataFrame) -> pd.DataFrame:
     data_with_indicators = technical_analyzer.calculate_bollinger_bands(data_with_indicators)
     data_with_indicators = technical_analyzer.calculate_volume_indicators(data_with_indicators)
     return data_with_indicators
+
+
+def analyze_news_sentiment(news_articles: List[Dict[str, Any]], ticker: str) -> Dict[str, Any]:
+    """Convenience function for news sentiment analysis."""
+    return sentiment_analyzer.analyze_news_sentiment(news_articles, ticker)
+
+
+def get_sentiment_summary(sentiment_result: Dict[str, Any]) -> str:
+    """Convenience function to get sentiment summary."""
+    return sentiment_analyzer.get_sentiment_summary(sentiment_result)
