@@ -227,28 +227,45 @@ class TechnicalAnalyzer:
             dict: Dictionary with support and resistance levels
         """
         try:
-            if len(data) < window:
-                return {"support": data['Low'].min(), "resistance": data['High'].max()}
+            if len(data) < 2:
+                # Insufficient data
+                latest_price = data['Close'].iloc[-1] if len(data) > 0 else 0
+                return {
+                    "support": latest_price,
+                    "resistance": latest_price,
+                    "pivot_point": latest_price
+                }
             
-            recent_data = data.tail(window)
+            if len(data) < window:
+                recent_data = data
+            else:
+                recent_data = data.tail(window)
             
             # Simple support/resistance calculation
             support = recent_data['Low'].min()
             resistance = recent_data['High'].max()
             
-            # Alternative: use pivot points
-            typical_price = (data['High'] + data['Low'] + data['Close']).tail(window).mean()
-            pivot_point = typical_price
+            # Calculate pivot point using typical price
+            if len(recent_data) > 0:
+                typical_price = (recent_data['High'] + recent_data['Low'] + recent_data['Close']).mean()
+                pivot_point = typical_price
+            else:
+                pivot_point = data['Close'].iloc[-1] if len(data) > 0 else 0
             
             return {
-                "support": support,
-                "resistance": resistance,
-                "pivot_point": pivot_point
+                "support": float(support),
+                "resistance": float(resistance), 
+                "pivot_point": float(pivot_point)
             }
             
         except Exception as e:
             logger.error(f"Error calculating support/resistance: {e}")
-            return {"support": 0, "resistance": 0, "pivot_point": 0}
+            latest_price = data['Close'].iloc[-1] if len(data) > 0 else 0
+            return {
+                "support": float(latest_price),
+                "resistance": float(latest_price), 
+                "pivot_point": float(latest_price)
+            }
     
     def analyze_stock(self, data: pd.DataFrame) -> Dict[str, Any]:
         """
@@ -434,18 +451,24 @@ class SentimentAnalyzer:
             prompt = self._create_sentiment_prompt(articles_text, ticker)
             
             # Get sentiment analysis from OpenAI
+            logger.debug(f"Sending request to OpenAI with model: {config.OPENAI_MODEL}")
+            
             response = self.client.chat.completions.create(
                 model=config.OPENAI_MODEL,
                 messages=[
-                    {"role": "system", "content": "You are a financial analyst specializing in stock sentiment analysis."},
+                    {"role": "system", "content": "You are a financial analyst. Return ONLY valid JSON responses."},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.1,  # Low temperature for consistent analysis
-                max_tokens=500
+                max_tokens=500,
+                response_format={"type": "json_object"}  # Force JSON response
             )
             
             # Parse the response
-            result = self._parse_sentiment_response(response.choices[0].message.content)
+            raw_response = response.choices[0].message.content
+            logger.debug(f"Raw OpenAI response length: {len(raw_response)} chars")
+            
+            result = self._parse_sentiment_response(raw_response)
             result["articles_analyzed"] = len(news_articles)
             
             logger.info(f"Completed sentiment analysis for {ticker} with {len(news_articles)} articles")
@@ -499,34 +522,30 @@ class SentimentAnalyzer:
             str: Prompt for OpenAI
         """
         prompt = f"""
-Analyze the sentiment of the following news articles about {ticker} stock. 
+Analyze the sentiment of the following news articles about {ticker} stock and return ONLY a valid JSON response.
 
 {articles_text}
 
-Please provide your analysis in the following JSON format:
+Return exactly this JSON format with no additional text or explanation:
+
 {{
-    "sentiment_score": <float between -1.0 and 1.0>,
-    "sentiment_label": "<Positive|Negative|Neutral>",
-    "confidence": <float between 0.0 and 1.0>,
-    "explanation": "<brief explanation of the sentiment analysis>",
-    "key_factors": ["<factor1>", "<factor2>", "<factor3>"]
+    "sentiment_score": 0.0,
+    "sentiment_label": "Neutral",
+    "confidence": 0.8,
+    "explanation": "Brief explanation here",
+    "key_factors": ["factor1", "factor2", "factor3"]
 }}
 
-Guidelines:
-- sentiment_score: -1.0 (very negative) to 1.0 (very positive), 0.0 (neutral)
-- sentiment_label: "Positive" (score > 0.3), "Negative" (score < -0.3), "Neutral" (between -0.3 and 0.3)
-- confidence: How confident you are in the analysis (0.0 to 1.0)
-- explanation: Brief summary of why you assigned this sentiment
-- key_factors: Up to 3 main factors influencing the sentiment
+Rules:
+- sentiment_score: number between -1.0 and 1.0 (-1.0=very negative, 0.0=neutral, 1.0=very positive)
+- sentiment_label: exactly one of "Positive", "Negative", or "Neutral"
+- confidence: number between 0.0 and 1.0 (how confident you are)
+- explanation: single sentence explaining the sentiment
+- key_factors: array of up to 3 short phrases describing main factors
 
-Focus on:
-1. Company performance and financial metrics
-2. Product announcements and business developments
-3. Market conditions and competitive position
-4. Regulatory or legal issues
-5. Executive changes or strategic decisions
+Focus on: company performance, product news, market conditions, regulatory issues, executive changes.
 
-Only return the JSON response, no additional text.
+IMPORTANT: Return ONLY valid JSON. No introductory text, no explanations, no markdown formatting.
 """
         return prompt
     
@@ -540,9 +559,24 @@ Only return the JSON response, no additional text.
         Returns:
             dict: Parsed sentiment analysis results
         """
+        # Log the raw response for debugging
+        logger.debug(f"Raw OpenAI response: {response_text}")
+        
         try:
-            # Try to parse as JSON
-            result = json.loads(response_text.strip())
+            # Clean the response text - sometimes OpenAI adds extra text
+            clean_text = response_text.strip()
+            
+            # Look for JSON content between curly braces
+            start_idx = clean_text.find('{')
+            end_idx = clean_text.rfind('}')
+            
+            if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                json_text = clean_text[start_idx:end_idx + 1]
+                logger.debug(f"Extracted JSON: {json_text}")
+                result = json.loads(json_text)
+            else:
+                # Try parsing the entire response as JSON
+                result = json.loads(clean_text)
             
             # Validate and sanitize the response
             sentiment_score = float(result.get('sentiment_score', 0.0))
@@ -561,6 +595,8 @@ Only return the JSON response, no additional text.
                 else:
                     sentiment_label = 'Neutral'
             
+            logger.info(f"Successfully parsed sentiment: {sentiment_label} (score: {sentiment_score}, confidence: {confidence})")
+            
             return {
                 "sentiment_score": round(sentiment_score, 3),
                 "sentiment_label": sentiment_label,
@@ -571,6 +607,7 @@ Only return the JSON response, no additional text.
             
         except (json.JSONDecodeError, ValueError, KeyError) as e:
             logger.warning(f"Failed to parse sentiment response as JSON: {e}")
+            logger.warning(f"Response text was: {response_text[:200]}...")  # Log first 200 chars
             
             # Fallback: try to extract sentiment from text
             response_lower = response_text.lower()
